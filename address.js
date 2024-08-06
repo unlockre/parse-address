@@ -533,7 +533,6 @@
       direct  : values(Directional).sort(function(a,b){return a.length < b.length}).reduce(function(prev,curr){return prev.concat([XRegExp.escape(curr.replace(/\w/g,'$&.')),curr])},keys(Directional)).join('|'),
       dircode : keys(Direction_Code).join("|"),
       zip     : '(?<zip>\\d{5})[- ]?(?<plus4>\\d{4})?',
-      corner  : '(?:\\band\\b|\\bat\\b|&|\\@)',
     };
 
     Addr_Match.number = '(?<number>(\\d+-?\\d*)|([N|S|E|W]\\d{1,3}[N|S|E|W]\\d{1,6}))(?=\\D)';
@@ -646,13 +645,6 @@
       (?:'+Addr_Match.sec_unit.replace(/_\d/g,'$&1')+sep+')?  \n\
       (?:'+Addr_Match.place+')?                               \n\
       ','ix');
-
-    Addr_Match.intersection = XRegExp('                     \n\
-      ^\\W*                                                 \n\
-      '+Addr_Match.street.replace(/_\d/g,'1$&')+'\\W*?      \n\
-      \\s+'+Addr_Match.corner+'\\s+                         \n\
-      '+Addr_Match.street.replace(/_\d/g,'2$&') + '($|\\W+) \n\
-      '+Addr_Match.place+'\\W*$','ix');
   }
   parser.normalize_address = function(parts){
     lazyInit();
@@ -705,34 +697,13 @@
   };
   parser.parseLocation = function(address){
     lazyInit();
-    if (XRegExp(Addr_Match.corner,'xi').test(address)) {
-        return parser.parseIntersection(address);
-    }
     if (XRegExp('^'+Addr_Match.po_box,'xi').test(address)){
       return parser.parsePoAddress(address);
     }
     return parser.parseAddress(address)
         || parser.parseInformalAddress(address);
   };
-  parser.parseIntersection = function(address){
-    lazyInit();
-    var parts = XRegExp.exec(address,Addr_Match.intersection);
-    parts = parser.normalize_address(parts);
-    if(parts){
-        parts.type2 = parts.type2 || '';
-        parts.type1 = parts.type1 || '';
-        if (parts.type2 && !parts.type1 || (parts.type1 === parts.type2)) {
-            var type = parts.type2;
-            type = XRegExp.replace(type,/s\W*$/,'');
-            if (XRegExp('^'+Addr_Match.type+'$','ix').test(type)) {
-                parts.type1 = parts.type2 = type;
-            }
-        }
-    }
-
-    return parts;
-  };
-
+  
   // AMD / RequireJS
   if (typeof define !== 'undefined' && define.amd) {
       define([], function () {
@@ -741,10 +712,10 @@
   }
   // Node.js
   else if (typeof exports !== "undefined") {
-    exports.parseIntersection = parser.parseIntersection;
     exports.parseLocation = parser.parseLocation;
     exports.parseInformalAddress = parser.parseInformalAddress;
     exports.parseAddress = parser.parseAddress;
+    exports.normalizeAddress = parser.normalize_address;
   }
   // included directly via <script> tag
   else {
